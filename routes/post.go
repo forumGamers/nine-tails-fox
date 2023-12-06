@@ -9,4 +9,5 @@ func (r *routes) postRoutes(rg *gin.RouterGroup, postController controllers.Post
 	uri := rg.Group("/post")
 
 	uri.GET("/public", postController.GetPublicContent)
+	uri.GET("/liked", postController.GetLikedPost)
 }

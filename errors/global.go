@@ -12,6 +12,8 @@ func NewError(msg string, code int) error {
 		return &forbiddenError{msg, code}
 	case 401:
 		return &unauthorizedError{msg, code}
+	case 404:
+		return &dataNotFoundError{msg, code}
 	default:
 		return &internalServerError{msg, 500}
 	}
@@ -22,6 +24,8 @@ func GetErrorMsg(err error) (string, int) {
 	case *forbiddenError:
 		return e.msg, e.StatusCode
 	case *unauthorizedError:
+		return e.msg, e.StatusCode
+	case *dataNotFoundError:
 		return e.msg, e.StatusCode
 	default:
 		return "Internal Server Error", 500

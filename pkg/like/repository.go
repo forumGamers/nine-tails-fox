@@ -1,35 +1,24 @@
-package post
+package like
 
 import (
 	"context"
-	"time"
 
 	"github.com/forumGamers/nine-tails-fox/errors"
 	h "github.com/forumGamers/nine-tails-fox/helpers"
 	b "github.com/forumGamers/nine-tails-fox/pkg/base"
+	"github.com/forumGamers/nine-tails-fox/pkg/post"
 	"github.com/forumGamers/nine-tails-fox/web"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func NewPostRepo() PostRepo {
-	return &PostRepoImpl{b.NewBaseRepo(b.GetCollection(b.Post))}
+func NewLikeRepo() LikeRepo {
+	return &LikeRepoImpl{b.NewBaseRepo(b.GetCollection(b.Like))}
 }
 
-func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, query web.GetPostParams) ([]PostResponse, error) {
-	now := time.Now().UTC()
-	curr, err := r.BaseRepo.Aggregations(ctx, bson.A{
-		bson.D{
-			{Key: "$match",
-				Value: bson.D{
-					{Key: "createdAt",
-						Value: bson.D{
-							{Key: "$gte", Value: now.AddDate(0, -1, 0)},
-							{Key: "$lte", Value: now},
-						},
-					},
-				},
-			},
-		},
+func (r *LikeRepoImpl) FindUserLikedPost(ctx context.Context, userId string, query web.GetPostParams) ([]post.PostResponse, error) {
+	curr, err := r.Aggregations(ctx, bson.A{
+		bson.D{{Key: "$match", Value: bson.D{{Key: "userId", Value: userId}}}},
 		bson.D{{Key: "$sort", Value: bson.D{{Key: "createdAt", Value: -1}}}},
 		bson.D{
 			{Key: "$facet",
@@ -46,8 +35,19 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 							bson.D{
 								{Key: "$lookup",
 									Value: bson.D{
+										{Key: "from", Value: "post"},
+										{Key: "localField", Value: "postId"},
+										{Key: "foreignField", Value: "_id"},
+										{Key: "as", Value: "post"},
+									},
+								},
+							},
+							bson.D{{Key: "$unwind", Value: "$post"}},
+							bson.D{
+								{Key: "$lookup",
+									Value: bson.D{
 										{Key: "from", Value: "comment"},
-										{Key: "localField", Value: "_id"},
+										{Key: "localField", Value: "post._id"},
 										{Key: "foreignField", Value: "postId"},
 										{Key: "as", Value: "comment"},
 									},
@@ -56,18 +56,8 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 							bson.D{
 								{Key: "$lookup",
 									Value: bson.D{
-										{Key: "from", Value: "like"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "like"},
-									},
-								},
-							},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
 										{Key: "from", Value: "share"},
-										{Key: "localField", Value: "_id"},
+										{Key: "localField", Value: "post._id"},
 										{Key: "foreignField", Value: "postId"},
 										{Key: "as", Value: "share"},
 									},
@@ -76,7 +66,6 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 							bson.D{
 								{Key: "$addFields",
 									Value: bson.D{
-										{Key: "countLike", Value: bson.D{{Key: "$size", Value: "$like"}}},
 										{Key: "countShare", Value: bson.D{{Key: "$size", Value: "$share"}}},
 										{Key: "countComment",
 											Value: bson.D{
@@ -84,34 +73,6 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 													Value: bson.A{
 														bson.D{{Key: "$size", Value: "$comment"}},
 														bson.D{{Key: "$size", Value: "$comment.reply"}},
-													},
-												},
-											},
-										},
-										{Key: "isLiked",
-											Value: bson.D{
-												{Key: "$reduce",
-													Value: bson.D{
-														{Key: "input", Value: "$like"},
-														{Key: "initialValue", Value: false},
-														{Key: "in",
-															Value: bson.D{
-																{Key: "$cond",
-																	Value: bson.A{
-																		bson.D{
-																			{Key: "$eq",
-																				Value: bson.A{
-																					"$$this.userId",
-																					userId,
-																				},
-																			},
-																		},
-																		true,
-																		"$$value",
-																	},
-																},
-															},
-														},
 													},
 												},
 											},
@@ -157,21 +118,30 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 		bson.D{
 			{Key: "$project",
 				Value: bson.D{
-					{Key: "_id", Value: "$datas._id"},
-					{Key: "userId", Value: "$datas.userId"},
-					{Key: "text", Value: "$datas.text"},
-					{Key: "media", Value: "$datas.media"},
-					{Key: "allowComment", Value: "$datas.allowComment"},
-					{Key: "createdAt", Value: "$datas.createdAt"},
-					{Key: "updatedAt", Value: "$datas.updatedAt"},
-					{Key: "countLike", Value: "$datas.countLike"},
+					{Key: "post", Value: "$datas.post"},
 					{Key: "countComment", Value: "$datas.countComment"},
 					{Key: "countShare", Value: "$datas.countShare"},
-					{Key: "isLiked", Value: "$datas.isLiked"},
 					{Key: "isShared", Value: "$datas.isShared"},
-					{Key: "tags", Value: "$datas.tags"},
-					{Key: "privacy", Value: "$datas.privacy"},
-					{Key: "totalData", Value: "$total.total"},
+					{Key: "total", Value: "$total.total"},
+				},
+			},
+		},
+		bson.D{
+			{Key: "$project",
+				Value: bson.D{
+					{Key: "_id", Value: "$post._id"},
+					{Key: "userId", Value: "$post.userId"},
+					{Key: "text", Value: "$post.text"},
+					{Key: "media", Value: "$post.media"},
+					{Key: "allowComment", Value: "$post.allowComment"},
+					{Key: "createdAt", Value: "$post.createdAt"},
+					{Key: "updatedAt", Value: "$post.updatedAt"},
+					{Key: "countComment", Value: 1},
+					{Key: "isShared", Value: 1},
+					{Key: "tags", Value: "$post.tags"},
+					{Key: "privacy", Value: "$post.privacy"},
+					{Key: "totalData", Value: "$total"},
+					{Key: "countShare", Value: 1},
 				},
 			},
 		},
@@ -181,13 +151,60 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 	}
 	defer curr.Close(context.Background())
 
-	var datas []PostResponse
+	var datas []post.PostResponse
 	for curr.Next(context.TODO()) {
-		var data PostResponse
+		var data post.PostResponse
 		if err := curr.Decode(&data); err != nil {
-			return nil, err
+			return datas, err
 		}
+
+		data.IsLiked = true
 		data.Text = h.Decryption(data.Text)
+
+		datas = append(datas, data)
+	}
+
+	if len(datas) < 1 {
+		return datas, errors.NewError("data not found", 404)
+	}
+
+	return datas, nil
+}
+
+func (r *LikeRepoImpl) CountPostLikes(ctx context.Context, ids []primitive.ObjectID) ([]PostLikes, error) {
+	curr, err := r.Aggregations(ctx, bson.A{
+		bson.D{
+			{Key: "$match",
+				Value: bson.D{
+					{Key: "postId",
+						Value: bson.D{
+							{Key: "$in", Value: ids},
+						},
+					},
+				},
+			},
+		},
+		bson.D{
+			{Key: "$group",
+				Value: bson.D{
+					{Key: "_id", Value: "$postId"},
+					{Key: "totalLike", Value: bson.D{{Key: "$sum", Value: 1}}},
+				},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer curr.Close(context.Background())
+
+	var datas []PostLikes
+	for curr.Next(context.TODO()) {
+		var data PostLikes
+		if err := curr.Decode(&data); err != nil {
+			return datas, err
+		}
+
 		datas = append(datas, data)
 	}
 

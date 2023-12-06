@@ -12,3 +12,6 @@ func (err *unauthorizedError) Error() string {
 	return err.msg
 }
 
+func (err *dataNotFoundError) Error() string {
+	return err.msg
+}

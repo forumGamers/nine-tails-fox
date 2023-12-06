@@ -20,3 +20,8 @@ type unauthorizedError struct {
 	msg        string
 	StatusCode int
 }
+
+type dataNotFoundError struct {
+	msg        string
+	StatusCode int
+}
