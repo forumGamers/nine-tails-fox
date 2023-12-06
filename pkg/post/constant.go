@@ -10,6 +10,7 @@ import (
 type PostRepo interface {
 	GetPublicContent(ctx context.Context, userId string, query web.GetPostParams) ([]PostResponse, error)
 	GetUserPost(ctx context.Context, userId string, query web.GetPostParams) ([]PostResponse, error)
+	GetUserPostMedia(ctx context.Context, userId string, query web.GetPostParams) ([]PostResponse, error)
 }
 
 type PostRepoImpl struct {
