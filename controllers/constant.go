@@ -10,6 +10,7 @@ import (
 type PostController interface {
 	GetPublicContent(c *gin.Context)
 	GetLikedPost(c *gin.Context)
+	GetUserPost(c *gin.Context)
 }
 
 type PostControllerImpl struct {
