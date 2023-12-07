@@ -132,6 +132,14 @@ func (w *ResponseWriterImpl) New401Error(msg string) error {
 	return errors.NewError(msg, 401)
 }
 
+func (w *ResponseWriterImpl) New400Error(msg string) error {
+	return errors.NewError(msg,400)
+}
+
+func (w *ResponseWriterImpl) NewInvalidObjectIdError() error {
+	return errors.NewInvalidObjectIdError()
+}
+
 func (w *ResponseWriterImpl) Write200Response(c *gin.Context, msg string, data any) {
 	w.WriteResponse(c, WebResponse{
 		200,

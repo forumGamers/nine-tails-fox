@@ -25,3 +25,5 @@ type dataNotFoundError struct {
 	msg        string
 	StatusCode int
 }
+
+type invalidObjectId struct{}

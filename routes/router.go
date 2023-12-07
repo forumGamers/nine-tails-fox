@@ -13,7 +13,7 @@ type routes struct {
 	router *gin.Engine
 }
 
-func NewRouters(writer web.ResponseWriter, postController controllers.PostController) {
+func NewRouters(writer web.ResponseWriter, postController controllers.PostController, commentController controllers.CommentController) {
 	r := routes{gin.Default()}
 
 	groupRoutes := r.router.Group("/api/v1")
@@ -22,6 +22,7 @@ func NewRouters(writer web.ResponseWriter, postController controllers.PostContro
 
 	r.router.Use(mds.Authentication)
 	r.postRoutes(groupRoutes, postController)
+	r.commentRoutes(groupRoutes, commentController)
 
 	port := os.Getenv("PORT")
 	if port == "" {

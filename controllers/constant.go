@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"github.com/forumGamers/nine-tails-fox/pkg/comment"
 	"github.com/forumGamers/nine-tails-fox/pkg/like"
 	"github.com/forumGamers/nine-tails-fox/pkg/post"
 	"github.com/forumGamers/nine-tails-fox/web"
@@ -19,4 +20,14 @@ type PostControllerImpl struct {
 	web.RequestReader
 	PostRepo post.PostRepo
 	LikeRepo like.LikeRepo
+}
+
+type CommentController interface {
+	FindPostComment(c *gin.Context)
+}
+
+type CommentControllerImpl struct {
+	CommentRepo comment.CommentRepo
+	web.ResponseWriter
+	web.RequestReader
 }

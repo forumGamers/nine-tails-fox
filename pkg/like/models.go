@@ -10,8 +10,8 @@ type Like struct {
 	Id        primitive.ObjectID `json:"_id" bson:"_id,omitempty"`
 	UserId    string             `json:"userId" bson:"userId,omitempty"`
 	PostId    primitive.ObjectID `json:"postId" bson:"postId,omitempty"`
-	CreatedAt time.Time          `json:"CreatedAt" bson:"CreatedAt"`
-	UpdatedAt time.Time          `json:"UpdatedAt" bson:"UpdatedAt"`
+	CreatedAt time.Time          `json:"createdAt" bson:"createdAt"`
+	UpdatedAt time.Time          `json:"updatedAt" bson:"updatedAt"`
 }
 
 type PostLikes struct {

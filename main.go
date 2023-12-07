@@ -4,6 +4,7 @@ import (
 	cfg "github.com/forumGamers/nine-tails-fox/config"
 	"github.com/forumGamers/nine-tails-fox/controllers"
 	"github.com/forumGamers/nine-tails-fox/errors"
+	"github.com/forumGamers/nine-tails-fox/pkg/comment"
 	"github.com/forumGamers/nine-tails-fox/pkg/like"
 	"github.com/forumGamers/nine-tails-fox/pkg/post"
 	r "github.com/forumGamers/nine-tails-fox/routes"
@@ -20,8 +21,11 @@ func main() {
 
 	postRepo := post.NewPostRepo()
 	likeRepo := like.NewLikeRepo()
-	postController := controllers.NewPostController(postRepo, responseWriter, requestReader, likeRepo)
+	commentRepo := comment.NewCommentRepo()
 
-	r.NewRouters(responseWriter, postController)
+	postController := controllers.NewPostController(postRepo, responseWriter, requestReader, likeRepo)
+	commentController := controllers.NewCommentController(commentRepo, responseWriter, requestReader)
+
+	r.NewRouters(responseWriter, postController, commentController)
 
 }

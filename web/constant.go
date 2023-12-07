@@ -11,6 +11,8 @@ type ResponseWriter interface {
 	New403Error(msg string) error
 	New401Error(msg string) error
 	Write200ResponseWithMetadata(c *gin.Context, msg string, data any, metadata MetaData)
+	NewInvalidObjectIdError() error
+	New400Error(msg string) error
 }
 
 type ResponseWriterImpl struct{}

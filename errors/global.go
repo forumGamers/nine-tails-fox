@@ -27,7 +27,13 @@ func GetErrorMsg(err error) (string, int) {
 		return e.msg, e.StatusCode
 	case *dataNotFoundError:
 		return e.msg, e.StatusCode
+	case *invalidObjectId:
+		return e.Error(), 400
 	default:
 		return "Internal Server Error", 500
 	}
+}
+
+func NewInvalidObjectIdError() error {
+	return &invalidObjectId{}
 }
