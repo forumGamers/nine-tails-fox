@@ -13,6 +13,9 @@ type PostController interface {
 	GetLikedPost(c *gin.Context)
 	GetUserPost(c *gin.Context)
 	GetUserMedia(c *gin.Context)
+	GetPostByUserId(c *gin.Context)
+	GetMediaByUserId(c *gin.Context)
+	GetUserLikedPost(c *gin.Context)
 }
 
 type PostControllerImpl struct {

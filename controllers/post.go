@@ -113,3 +113,97 @@ func (pc *PostControllerImpl) GetUserMedia(c *gin.Context) {
 		Limit: query.Limit,
 	})
 }
+
+func (pc *PostControllerImpl) GetPostByUserId(c *gin.Context) {
+	userId := c.Param("userId")
+	if _, err := primitive.ObjectIDFromHex(userId); err != nil {
+		pc.AbortHttp(c, pc.NewInvalidObjectIdError())
+		return
+	}
+
+	var query web.GetPostParams
+	pc.GetParams(c, &query)
+	pc.DefaultPage(&query)
+	pc.DefaultLimit(&query)
+
+	datas, err := pc.PostRepo.GetUserPost(context.Background(), userId, query)
+	if err != nil {
+		pc.AbortHttp(c, err)
+		return
+	}
+
+	pc.Write200ResponseWithMetadata(c, "OK", datas, web.MetaData{
+		Total: datas[0].TotalData,
+		Page:  query.Page,
+		Limit: query.Limit,
+	})
+}
+
+func (pc *PostControllerImpl) GetMediaByUserId(c *gin.Context) {
+	userId := c.Param("userId")
+	if _, err := primitive.ObjectIDFromHex(userId); err != nil {
+		pc.AbortHttp(c, pc.NewInvalidObjectIdError())
+		return
+	}
+
+	var query web.GetPostParams
+	pc.GetParams(c, &query)
+	pc.DefaultPage(&query)
+	pc.DefaultLimit(&query)
+
+	datas, err := pc.PostRepo.GetUserPostMedia(context.Background(), userId, query)
+	if err != nil {
+		pc.AbortHttp(c, err)
+		return
+	}
+
+	pc.Write200ResponseWithMetadata(c, "OK", datas, web.MetaData{
+		Total: datas[0].TotalData,
+		Page:  query.Page,
+		Limit: query.Limit,
+	})
+}
+
+func (pc *PostControllerImpl) GetUserLikedPost(c *gin.Context) {
+	userId := c.Param("userId")
+	if _, err := primitive.ObjectIDFromHex(userId); err != nil {
+		pc.AbortHttp(c, pc.NewInvalidObjectIdError())
+		return
+	}
+
+	var query web.GetPostParams
+	pc.GetParams(c, &query)
+	pc.DefaultPage(&query)
+	pc.DefaultLimit(&query)
+
+	datas, err := pc.LikeRepo.FindUserLikedPost(context.Background(), userId, query)
+	if err != nil {
+		pc.AbortHttp(c, err)
+		return
+	}
+
+	var postIds []primitive.ObjectID
+	for _, post := range datas {
+		postIds = append(postIds, post.Id)
+	}
+
+	metas, err := pc.LikeRepo.CountPostLikes(context.Background(), postIds)
+	if err != nil {
+		pc.AbortHttp(c, err)
+		return
+	}
+
+	for _, meta := range metas {
+		for i := 0; i < len(datas); i++ {
+			if meta.Id == datas[i].Id {
+				datas[i].CountLike = meta.TotalLike
+			}
+		}
+	}
+
+	pc.Write200ResponseWithMetadata(c, "OK", datas, web.MetaData{
+		Total: datas[0].TotalData,
+		Page:  query.Page,
+		Limit: query.Limit,
+	})
+}
