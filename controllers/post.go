@@ -36,7 +36,8 @@ func (pc *PostControllerImpl) GetPublicContent(c *gin.Context) {
 }
 
 func (pc *PostControllerImpl) GetUserPost(c *gin.Context) {
-	uuid := user.GetUser(c).UUID
+	uuid := "cde275bd-3437-4184-bc07-b56e8ab3dd6c"
+	// user.GetUser(c).UUID
 	var query web.GetPostParams
 	pc.GetParams(c, &query)
 	pc.DefaultPage(&query)
@@ -115,18 +116,12 @@ func (pc *PostControllerImpl) GetUserMedia(c *gin.Context) {
 }
 
 func (pc *PostControllerImpl) GetPostByUserId(c *gin.Context) {
-	userId := c.Param("userId")
-	if _, err := primitive.ObjectIDFromHex(userId); err != nil {
-		pc.AbortHttp(c, pc.NewInvalidObjectIdError())
-		return
-	}
-
 	var query web.GetPostParams
 	pc.GetParams(c, &query)
 	pc.DefaultPage(&query)
 	pc.DefaultLimit(&query)
 
-	datas, err := pc.PostRepo.GetUserPost(context.Background(), userId, query)
+	datas, err := pc.PostRepo.GetUserPost(context.Background(), c.Param("userId"), query)
 	if err != nil {
 		pc.AbortHttp(c, err)
 		return
@@ -140,18 +135,12 @@ func (pc *PostControllerImpl) GetPostByUserId(c *gin.Context) {
 }
 
 func (pc *PostControllerImpl) GetMediaByUserId(c *gin.Context) {
-	userId := c.Param("userId")
-	if _, err := primitive.ObjectIDFromHex(userId); err != nil {
-		pc.AbortHttp(c, pc.NewInvalidObjectIdError())
-		return
-	}
-
 	var query web.GetPostParams
 	pc.GetParams(c, &query)
 	pc.DefaultPage(&query)
 	pc.DefaultLimit(&query)
 
-	datas, err := pc.PostRepo.GetUserPostMedia(context.Background(), userId, query)
+	datas, err := pc.PostRepo.GetUserPostMedia(context.Background(), c.Param("userId"), query)
 	if err != nil {
 		pc.AbortHttp(c, err)
 		return
@@ -165,18 +154,12 @@ func (pc *PostControllerImpl) GetMediaByUserId(c *gin.Context) {
 }
 
 func (pc *PostControllerImpl) GetUserLikedPost(c *gin.Context) {
-	userId := c.Param("userId")
-	if _, err := primitive.ObjectIDFromHex(userId); err != nil {
-		pc.AbortHttp(c, pc.NewInvalidObjectIdError())
-		return
-	}
-
 	var query web.GetPostParams
 	pc.GetParams(c, &query)
 	pc.DefaultPage(&query)
 	pc.DefaultLimit(&query)
 
-	datas, err := pc.LikeRepo.FindUserLikedPost(context.Background(), userId, query)
+	datas, err := pc.LikeRepo.FindUserLikedPost(context.Background(), c.Param("userId"), query)
 	if err != nil {
 		pc.AbortHttp(c, err)
 		return
