@@ -9,6 +9,7 @@ func (r *routes) postRoutes(rg *gin.RouterGroup, postController controllers.Post
 	uri := rg.Group("/post")
 
 	uri.GET("/public", postController.GetPublicContent)
+	uri.GET("/tags", postController.GetTopTags)
 	uri.GET("/liked", postController.GetLikedPost)
 	uri.GET("/liked/:userId", postController.GetUserLikedPost)
 	uri.GET("/me", postController.GetUserPost)

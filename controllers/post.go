@@ -21,7 +21,7 @@ func (pc *PostControllerImpl) GetPublicContent(c *gin.Context) {
 	pc.GetParams(c, &query)
 	pc.DefaultPage(&query)
 	pc.DefaultLimit(&query)
-
+	//get $or userId yang di follow + $or tags teratas dalam 1 hari
 	datas, err := pc.PostRepo.GetPublicContent(context.Background(), uuid, query)
 	if err != nil {
 		pc.AbortHttp(c, err)
@@ -36,8 +36,7 @@ func (pc *PostControllerImpl) GetPublicContent(c *gin.Context) {
 }
 
 func (pc *PostControllerImpl) GetUserPost(c *gin.Context) {
-	uuid := "cde275bd-3437-4184-bc07-b56e8ab3dd6c"
-	// user.GetUser(c).UUID
+	uuid := user.GetUser(c).UUID
 	var query web.GetPostParams
 	pc.GetParams(c, &query)
 	pc.DefaultPage(&query)
@@ -189,4 +188,19 @@ func (pc *PostControllerImpl) GetUserLikedPost(c *gin.Context) {
 		Page:  query.Page,
 		Limit: query.Limit,
 	})
+}
+
+func (pc *PostControllerImpl) GetTopTags(c *gin.Context) {
+	var query web.GetPostParams
+	pc.GetParams(c, &query)
+	pc.DefaultPage(&query)
+	pc.DefaultLimit(&query)
+
+	datas, err := pc.PostRepo.GetTopTags(context.Background(), query)
+	if err != nil {
+		pc.AbortHttp(c, err)
+		return
+	}
+
+	pc.Write200Response(c, "OK", datas)
 }

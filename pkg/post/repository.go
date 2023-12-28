@@ -187,7 +187,6 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 		if err := curr.Decode(&data); err != nil {
 			return nil, err
 		}
-		data.Text = h.Decryption(data.Text)
 		datas = append(datas, data)
 	}
 
@@ -358,8 +357,6 @@ func (r *PostRepoImpl) GetUserPost(ctx context.Context, userId string, query web
 		if err := curr.Decode(&data); err != nil {
 			return nil, err
 		}
-
-		data.Text = h.Decryption(data.Text)
 		datas = append(datas, data)
 	}
 
@@ -538,7 +535,42 @@ func (r *PostRepoImpl) GetUserPostMedia(ctx context.Context, userId string, quer
 			return nil, err
 		}
 
-		data.Text = h.Decryption(data.Text)
+		datas = append(datas, data)
+	}
+
+	if len(datas) < 1 {
+		return datas, errors.NewError("data not found", 404)
+	}
+
+	return datas, nil
+}
+
+func (r *PostRepoImpl) GetTopTags(ctx context.Context, query web.GetPostParams) ([]TopTags, error) {
+	cursor, err := r.Aggregations(ctx, bson.A{
+		bson.D{{Key: "$match", Value: bson.D{{Key: "createdAt", Value: bson.D{{Key: "$gte", Value: h.StartOfDay(time.Now())}}}}}},
+		bson.D{{Key: "$unwind", Value: "$tags"}},
+		bson.D{
+			{Key: "$group", Value: bson.D{
+				{Key: "_id", Value: "$tags"},
+				{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+				{Key: "posts", Value: bson.D{{Key: "$addToSet", Value: "$_id"}}},
+			},
+			},
+		},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}}}},
+		bson.D{{Key: "$skip", Value: (query.Page - 1) * query.Limit}},
+		bson.D{{Key: "$limit", Value: query.Limit}},
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+	var datas []TopTags
+	for cursor.Next(context.TODO()) {
+		var data TopTags
+		if err := cursor.Decode(&data); err != nil {
+			return datas, err
+		}
 		datas = append(datas, data)
 	}
 
