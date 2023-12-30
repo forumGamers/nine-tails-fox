@@ -19,8 +19,10 @@ type ResponseWriterImpl struct{}
 
 type RequestReader interface {
 	GetParams(c *gin.Context, p any) error
-	DefaultPage(q *GetPostParams)
-	DefaultLimit(q *GetPostParams)
+	DefaultPage(q *GetPostParams) *RequestReaderImpl
+	DefaultLimit(q *GetPostParams) *RequestReaderImpl
+	ParseTags(q *GetPostParams) *RequestReaderImpl
+	ParseUserIds(q *GetPostParams) *RequestReaderImpl
 }
 
 type RequestReaderImpl struct{}

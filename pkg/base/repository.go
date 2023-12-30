@@ -7,9 +7,7 @@ import (
 )
 
 func NewBaseRepo(db *mongo.Collection) BaseRepo {
-	return &BaseRepoImpl{
-		DB: db,
-	}
+	return &BaseRepoImpl{db}
 }
 
 func (b *BaseRepoImpl) FindByQuery(ctx context.Context, query any) (*mongo.Cursor, error) {

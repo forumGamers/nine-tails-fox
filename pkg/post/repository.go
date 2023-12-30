@@ -17,20 +17,36 @@ func NewPostRepo() PostRepo {
 
 func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, query web.GetPostParams) ([]PostResponse, error) {
 	now := time.Now().UTC()
-	curr, err := r.BaseRepo.Aggregations(ctx, bson.A{
-		bson.D{
-			{Key: "$match",
+	orQuery := bson.A{}
+
+	if query.Tags != nil && len(query.Tags) > 0 {
+		orQuery = append(orQuery, bson.D{
+			{Key: "tags", Value: bson.D{
+				{Key: "$in", Value: query.Tags},
+			}},
+		})
+	}
+
+	if query.UserIds != nil && len(query.UserIds) > 0 {
+		orQuery = append(orQuery, bson.D{
+			{Key: "userId", Value: bson.D{
+				{Key: "$in", Value: query.UserIds},
+			}},
+		})
+	}
+
+	orQuery = append(orQuery, bson.D{})
+
+	pipeline := bson.A{
+		bson.D{{Key: "$match", Value: bson.D{
+			{Key: "createdAt",
 				Value: bson.D{
-					{Key: "createdAt",
-						Value: bson.D{
-							{Key: "$gte", Value: now.AddDate(0, -1, 0)},
-							{Key: "$lte", Value: now},
-						},
-					},
+					{Key: "$gte", Value: h.StartOfDay(now.AddDate(0, 0, -3))},
 				},
 			},
-		},
-		bson.D{{Key: "$sort", Value: bson.D{{Key: "createdAt", Value: -1}}}},
+			{Key: "privacy", Value: "Public"},
+			{Key: "$or", Value: orQuery},
+		}}},
 		bson.D{
 			{Key: "$facet",
 				Value: bson.D{
@@ -175,7 +191,9 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 				},
 			},
 		},
-	})
+	}
+
+	curr, err := r.BaseRepo.Aggregations(ctx, pipeline)
 	if err != nil {
 		return nil, err
 	}

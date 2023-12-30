@@ -19,9 +19,12 @@ func (pc *PostControllerImpl) GetPublicContent(c *gin.Context) {
 	uuid := user.GetUser(c).UUID
 	var query web.GetPostParams
 	pc.GetParams(c, &query)
-	pc.DefaultPage(&query)
-	pc.DefaultLimit(&query)
-	//get $or userId yang di follow + $or tags teratas dalam 1 hari
+
+	pc.DefaultPage(&query).
+		DefaultLimit(&query).
+		ParseTags(&query).
+		ParseUserIds(&query)
+
 	datas, err := pc.PostRepo.GetPublicContent(context.Background(), uuid, query)
 	if err != nil {
 		pc.AbortHttp(c, err)
