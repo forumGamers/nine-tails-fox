@@ -7,12 +7,13 @@ import (
 	"github.com/forumGamers/nine-tails-fox/errors"
 	h "github.com/forumGamers/nine-tails-fox/helpers"
 	b "github.com/forumGamers/nine-tails-fox/pkg/base"
+	"github.com/forumGamers/nine-tails-fox/utils"
 	"github.com/forumGamers/nine-tails-fox/web"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func NewPostRepo() PostRepo {
-	return &PostRepoImpl{b.NewBaseRepo(b.GetCollection(b.Post))}
+func NewPostRepo(qu utils.QueryUtils) PostRepo {
+	return &PostRepoImpl{b.NewBaseRepo(b.GetCollection(b.Post)), qu}
 }
 
 func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, query web.GetPostParams) ([]PostResponse, error) {
@@ -36,8 +37,7 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 	}
 
 	orQuery = append(orQuery, bson.D{})
-
-	pipeline := bson.A{
+	curr, err := r.BaseRepo.Aggregations(ctx, bson.A{
 		bson.D{{Key: "$match", Value: bson.D{
 			{Key: "createdAt",
 				Value: bson.D{
@@ -57,109 +57,19 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 					},
 					{Key: "datas",
 						Value: bson.A{
-							bson.D{{Key: "$skip", Value: (query.Page - 1) * query.Limit}},
-							bson.D{{Key: "$limit", Value: query.Limit}},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "comment"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "comment"},
-									},
-								},
-							},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "like"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "like"},
-									},
-								},
-							},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "share"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "share"},
-									},
-								},
-							},
+							r.NewSkip((query.Page - 1) * query.Limit),
+							r.NewLimit(query.Limit),
+							r.NewLookup("comment", "_id", "postId", "comment"),
+							r.NewLookup("like", "_id", "postId", "like"),
+							r.NewLookup("share", "_id", "posId", "share"),
 							bson.D{
 								{Key: "$addFields",
 									Value: bson.D{
 										{Key: "countLike", Value: bson.D{{Key: "$size", Value: "$like"}}},
 										{Key: "countShare", Value: bson.D{{Key: "$size", Value: "$share"}}},
-										{Key: "countComment",
-											Value: bson.D{
-												{Key: "$sum",
-													Value: bson.A{
-														bson.D{{Key: "$size", Value: "$comment"}},
-														bson.D{{Key: "$size", Value: "$comment.reply"}},
-													},
-												},
-											},
-										},
-										{Key: "isLiked",
-											Value: bson.D{
-												{Key: "$reduce",
-													Value: bson.D{
-														{Key: "input", Value: "$like"},
-														{Key: "initialValue", Value: false},
-														{Key: "in",
-															Value: bson.D{
-																{Key: "$cond",
-																	Value: bson.A{
-																		bson.D{
-																			{Key: "$eq",
-																				Value: bson.A{
-																					"$$this.userId",
-																					userId,
-																				},
-																			},
-																		},
-																		true,
-																		"$$value",
-																	},
-																},
-															},
-														},
-													},
-												},
-											},
-										},
-										{Key: "isShared",
-											Value: bson.D{
-												{Key: "$reduce",
-													Value: bson.D{
-														{Key: "input", Value: "$share"},
-														{Key: "initialValue", Value: false},
-														{Key: "in",
-															Value: bson.D{
-																{Key: "$cond",
-																	Value: bson.A{
-																		bson.D{
-																			{Key: "$eq",
-																				Value: bson.A{
-																					"$$this.userId",
-																					userId,
-																				},
-																			},
-																		},
-																		true,
-																		"$$value",
-																	},
-																},
-															},
-														},
-													},
-												},
-											},
-										},
+										r.NewCountComment("countComment", "$comment"),
+										r.IsDo("isLiked", "$like", userId),
+										r.IsDo("isShared", "$share", userId),
 									},
 								},
 							},
@@ -168,8 +78,8 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 				},
 			},
 		},
-		bson.D{{Key: "$unwind", Value: "$datas"}},
-		bson.D{{Key: "$unwind", Value: "$total"}},
+		r.NewRawUnwind("$datas"),
+		r.NewRawUnwind("$total"),
 		bson.D{
 			{Key: "$project",
 				Value: bson.D{
@@ -191,9 +101,7 @@ func (r *PostRepoImpl) GetPublicContent(ctx context.Context, userId string, quer
 				},
 			},
 		},
-	}
-
-	curr, err := r.BaseRepo.Aggregations(ctx, pipeline)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -229,109 +137,19 @@ func (r *PostRepoImpl) GetUserPost(ctx context.Context, userId string, query web
 					},
 					{Key: "datas",
 						Value: bson.A{
-							bson.D{{Key: "$skip", Value: (query.Page - 1) * query.Limit}},
-							bson.D{{Key: "$limit", Value: query.Limit}},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "comment"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "comment"},
-									},
-								},
-							},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "like"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "like"},
-									},
-								},
-							},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "share"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "share"},
-									},
-								},
-							},
+							r.NewSkip((query.Page - 1) * query.Limit),
+							r.NewLimit(query.Limit),
+							r.NewLookup("comment", "_id", "postId", "comment"),
+							r.NewLookup("like", "_id", "postId", "like"),
+							r.NewLookup("share", "_id", "posId", "share"),
 							bson.D{
 								{Key: "$addFields",
 									Value: bson.D{
 										{Key: "countLike", Value: bson.D{{Key: "$size", Value: "$like"}}},
 										{Key: "countShare", Value: bson.D{{Key: "$size", Value: "$share"}}},
-										{Key: "countComment",
-											Value: bson.D{
-												{Key: "$sum",
-													Value: bson.A{
-														bson.D{{Key: "$size", Value: "$comment"}},
-														bson.D{{Key: "$size", Value: "$comment.reply"}},
-													},
-												},
-											},
-										},
-										{Key: "isLiked",
-											Value: bson.D{
-												{Key: "$reduce",
-													Value: bson.D{
-														{Key: "input", Value: "$like"},
-														{Key: "initialValue", Value: false},
-														{Key: "in",
-															Value: bson.D{
-																{Key: "$cond",
-																	Value: bson.A{
-																		bson.D{
-																			{Key: "$eq",
-																				Value: bson.A{
-																					"$$this.userId",
-																					userId,
-																				},
-																			},
-																		},
-																		true,
-																		"$$value",
-																	},
-																},
-															},
-														},
-													},
-												},
-											},
-										},
-										{Key: "isShared",
-											Value: bson.D{
-												{Key: "$reduce",
-													Value: bson.D{
-														{Key: "input", Value: "$share"},
-														{Key: "initialValue", Value: false},
-														{Key: "in",
-															Value: bson.D{
-																{Key: "$cond",
-																	Value: bson.A{
-																		bson.D{
-																			{Key: "$eq",
-																				Value: bson.A{
-																					"$$this.userId",
-																					userId,
-																				},
-																			},
-																		},
-																		true,
-																		"$$value",
-																	},
-																},
-															},
-														},
-													},
-												},
-											},
-										},
+										r.NewCountComment("countComment", "$comment"),
+										r.IsDo("isLiked", "$like", userId),
+										r.IsDo("isShared", "$share", userId),
 									},
 								},
 							},
@@ -406,109 +224,19 @@ func (r *PostRepoImpl) GetUserPostMedia(ctx context.Context, userId string, quer
 					},
 					{Key: "datas",
 						Value: bson.A{
-							bson.D{{Key: "$skip", Value: (query.Page - 1) * query.Limit}},
-							bson.D{{Key: "$limit", Value: query.Limit}},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "comment"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "comment"},
-									},
-								},
-							},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "like"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "like"},
-									},
-								},
-							},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "share"},
-										{Key: "localField", Value: "_id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "share"},
-									},
-								},
-							},
+							r.NewSkip((query.Page - 1) * query.Limit),
+							r.NewLimit(query.Limit),
+							r.NewLookup("comment", "_id", "postId", "comment"),
+							r.NewLookup("like", "_id", "postId", "like"),
+							r.NewLookup("share", "_id", "posId", "share"),
 							bson.D{
 								{Key: "$addFields",
 									Value: bson.D{
 										{Key: "countLike", Value: bson.D{{Key: "$size", Value: "$like"}}},
 										{Key: "countShare", Value: bson.D{{Key: "$size", Value: "$share"}}},
-										{Key: "countComment",
-											Value: bson.D{
-												{Key: "$sum",
-													Value: bson.A{
-														bson.D{{Key: "$size", Value: "$comment"}},
-														bson.D{{Key: "$size", Value: "$comment.reply"}},
-													},
-												},
-											},
-										},
-										{Key: "isLiked",
-											Value: bson.D{
-												{Key: "$reduce",
-													Value: bson.D{
-														{Key: "input", Value: "$like"},
-														{Key: "initialValue", Value: false},
-														{Key: "in",
-															Value: bson.D{
-																{Key: "$cond",
-																	Value: bson.A{
-																		bson.D{
-																			{Key: "$eq",
-																				Value: bson.A{
-																					"$$this.userId",
-																					userId,
-																				},
-																			},
-																		},
-																		true,
-																		"$$value",
-																	},
-																},
-															},
-														},
-													},
-												},
-											},
-										},
-										{Key: "isShared",
-											Value: bson.D{
-												{Key: "$reduce",
-													Value: bson.D{
-														{Key: "input", Value: "$share"},
-														{Key: "initialValue", Value: false},
-														{Key: "in",
-															Value: bson.D{
-																{Key: "$cond",
-																	Value: bson.A{
-																		bson.D{
-																			{Key: "$eq",
-																				Value: bson.A{
-																					"$$this.userId",
-																					userId,
-																				},
-																			},
-																		},
-																		true,
-																		"$$value",
-																	},
-																},
-															},
-														},
-													},
-												},
-											},
-										},
+										r.NewCountComment("countComment", "$comment"),
+										r.IsDo("isLiked", "$like", userId),
+										r.IsDo("isShared", "$share", userId),
 									},
 								},
 							},
@@ -566,7 +294,7 @@ func (r *PostRepoImpl) GetUserPostMedia(ctx context.Context, userId string, quer
 func (r *PostRepoImpl) GetTopTags(ctx context.Context, query web.GetPostParams) ([]TopTags, error) {
 	cursor, err := r.Aggregations(ctx, bson.A{
 		bson.D{{Key: "$match", Value: bson.D{{Key: "createdAt", Value: bson.D{{Key: "$gte", Value: h.StartOfDay(time.Now())}}}}}},
-		bson.D{{Key: "$unwind", Value: "$tags"}},
+		r.NewRawUnwind("$tags"),
 		bson.D{
 			{Key: "$group", Value: bson.D{
 				{Key: "_id", Value: "$tags"},

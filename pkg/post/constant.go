@@ -4,6 +4,7 @@ import (
 	"context"
 
 	b "github.com/forumGamers/nine-tails-fox/pkg/base"
+	"github.com/forumGamers/nine-tails-fox/utils"
 	"github.com/forumGamers/nine-tails-fox/web"
 )
 
@@ -16,4 +17,5 @@ type PostRepo interface {
 
 type PostRepoImpl struct {
 	b.BaseRepo
+	utils.QueryUtils
 }

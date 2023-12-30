@@ -5,6 +5,7 @@ import (
 
 	b "github.com/forumGamers/nine-tails-fox/pkg/base"
 	"github.com/forumGamers/nine-tails-fox/pkg/post"
+	"github.com/forumGamers/nine-tails-fox/utils"
 	"github.com/forumGamers/nine-tails-fox/web"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -16,4 +17,5 @@ type LikeRepo interface {
 
 type LikeRepoImpl struct {
 	b.BaseRepo
+	utils.QueryUtils
 }

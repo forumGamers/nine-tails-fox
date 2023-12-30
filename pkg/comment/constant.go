@@ -4,6 +4,7 @@ import (
 	"context"
 
 	b "github.com/forumGamers/nine-tails-fox/pkg/base"
+	"github.com/forumGamers/nine-tails-fox/utils"
 	"github.com/forumGamers/nine-tails-fox/web"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -14,4 +15,5 @@ type CommentRepo interface {
 
 type CommentRepoImpl struct {
 	b.BaseRepo
+	utils.QueryUtils
 }

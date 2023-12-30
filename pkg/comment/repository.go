@@ -6,13 +6,14 @@ import (
 	"github.com/forumGamers/nine-tails-fox/errors"
 	h "github.com/forumGamers/nine-tails-fox/helpers"
 	b "github.com/forumGamers/nine-tails-fox/pkg/base"
+	"github.com/forumGamers/nine-tails-fox/utils"
 	"github.com/forumGamers/nine-tails-fox/web"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func NewCommentRepo() CommentRepo {
-	return &CommentRepoImpl{b.NewBaseRepo(b.GetCollection(b.Comment))}
+func NewCommentRepo(qu utils.QueryUtils) CommentRepo {
+	return &CommentRepoImpl{b.NewBaseRepo(b.GetCollection(b.Comment)), qu}
 }
 
 func (r *CommentRepoImpl) FindPostComment(ctx context.Context, postId primitive.ObjectID, query web.GetPostParams) ([]CommentResponse, error) {
@@ -28,16 +29,16 @@ func (r *CommentRepoImpl) FindPostComment(ctx context.Context, postId primitive.
 					},
 					{Key: "data",
 						Value: bson.A{
-							bson.D{{Key: "$skip", Value: (query.Page - 1) * query.Limit}},
-							bson.D{{Key: "$limit", Value: query.Limit}},
+							r.NewSkip((query.Page - 1) * query.Limit),
+							r.NewLimit(query.Limit),
 							bson.D{{Key: "$sort", Value: bson.D{{Key: "createdAt", Value: -1}}}},
 						},
 					},
 				},
 			},
 		},
-		bson.D{{Key: "$unwind", Value: "$total"}},
-		bson.D{{Key: "$unwind", Value: "$data"}},
+		r.NewRawUnwind("$total"),
+		r.NewRawUnwind("$data"),
 		bson.D{
 			{Key: "$project",
 				Value: bson.D{
@@ -64,8 +65,6 @@ func (r *CommentRepoImpl) FindPostComment(ctx context.Context, postId primitive.
 		if err := curr.Decode(&data); err != nil {
 			return datas, err
 		}
-
-		data.Text = h.Decryption(data.Text)
 
 		if len(data.Reply) > 0 {
 			for i := 0; i < len(data.Reply); i++ {

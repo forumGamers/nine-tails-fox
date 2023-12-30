@@ -7,13 +7,14 @@ import (
 	h "github.com/forumGamers/nine-tails-fox/helpers"
 	b "github.com/forumGamers/nine-tails-fox/pkg/base"
 	"github.com/forumGamers/nine-tails-fox/pkg/post"
+	"github.com/forumGamers/nine-tails-fox/utils"
 	"github.com/forumGamers/nine-tails-fox/web"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func NewLikeRepo() LikeRepo {
-	return &LikeRepoImpl{b.NewBaseRepo(b.GetCollection(b.Like))}
+func NewLikeRepo(qu utils.QueryUtils) LikeRepo {
+	return &LikeRepoImpl{b.NewBaseRepo(b.GetCollection(b.Like)), qu}
 }
 
 func (r *LikeRepoImpl) FindUserLikedPost(ctx context.Context, userId string, query web.GetPostParams) ([]post.PostResponse, error) {
@@ -30,81 +31,18 @@ func (r *LikeRepoImpl) FindUserLikedPost(ctx context.Context, userId string, que
 					},
 					{Key: "datas",
 						Value: bson.A{
-							bson.D{{Key: "$skip", Value: (query.Page - 1) * query.Limit}},
-							bson.D{{Key: "$limit", Value: query.Limit}},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "post"},
-										{Key: "localField", Value: "postId"},
-										{Key: "foreignField", Value: "_id"},
-										{Key: "as", Value: "post"},
-									},
-								},
-							},
-							bson.D{{Key: "$unwind", Value: "$post"}},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "comment"},
-										{Key: "localField", Value: "post._id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "comment"},
-									},
-								},
-							},
-							bson.D{
-								{Key: "$lookup",
-									Value: bson.D{
-										{Key: "from", Value: "share"},
-										{Key: "localField", Value: "post._id"},
-										{Key: "foreignField", Value: "postId"},
-										{Key: "as", Value: "share"},
-									},
-								},
-							},
+							r.NewSkip((query.Page - 1) * query.Limit),
+							r.NewLimit(query.Limit),
+							r.NewLookup("post", "postId", "_id", "post"),
+							r.NewRawUnwind("$post"),
+							r.NewLookup("comment", "post._id", "postId", "comment"),
+							r.NewLookup("share", "post._id", "postId", "share"),
 							bson.D{
 								{Key: "$addFields",
 									Value: bson.D{
 										{Key: "countShare", Value: bson.D{{Key: "$size", Value: "$share"}}},
-										{Key: "countComment",
-											Value: bson.D{
-												{Key: "$sum",
-													Value: bson.A{
-														bson.D{{Key: "$size", Value: "$comment"}},
-														bson.D{{Key: "$size", Value: "$comment.reply"}},
-													},
-												},
-											},
-										},
-										{Key: "isShared",
-											Value: bson.D{
-												{Key: "$reduce",
-													Value: bson.D{
-														{Key: "input", Value: "$share"},
-														{Key: "initialValue", Value: false},
-														{Key: "in",
-															Value: bson.D{
-																{Key: "$cond",
-																	Value: bson.A{
-																		bson.D{
-																			{Key: "$eq",
-																				Value: bson.A{
-																					"$$this.userId",
-																					userId,
-																				},
-																			},
-																		},
-																		true,
-																		"$$value",
-																	},
-																},
-															},
-														},
-													},
-												},
-											},
-										},
+										r.NewCountComment("countComment", "$comment"),
+										r.IsDo("isShared", "$share", userId),
 									},
 								},
 							},
